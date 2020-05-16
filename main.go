@@ -2,13 +2,11 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/bwmarrin/discordgo"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,45 +23,10 @@ func init() {
 	flag.Parse()
 }
 
-func codacyHandler(c *gin.Context) {
-	type codacy struct {
-		Commit struct {
-			Data struct {
-				UUID string `json:"uuid"`
-				Urls struct {
-					Delta string `json:"delta"`
-				} `json:"urls"`
-			} `json:"data"`
-			Results struct {
-				FixedCount int `json:"fixed_count"`
-				NewCount   int `json:"new_count"`
-			} `json:"results"`
-		} `json:"commit"`
-	}
-	b, err := ioutil.ReadAll(c.Request.Body)
-	if err != nil {
-		log.Errorf("Failed to decode request body: %s", err.Error())
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-	defer func() { _ = c.Request.Body.Close() }()
-	var cod codacy
-	if err := json.Unmarshal(b, &cod); err != nil {
-		c.AbortWithStatus(http.StatusInternalServerError)
-		return
-	}
-	if session != nil {
-		msg := fmt.Sprintf("Codacy - Fixed Issues: %d New Issues %d - <%s>",
-			cod.Commit.Results.FixedCount, cod.Commit.Results.NewCount, cod.Commit.Data.Urls.Delta)
-		sendMsg(session, channelID, msg)
-	}
-	c.AbortWithStatus(http.StatusOK)
-
-}
-
 func createServer(listenHost string) *http.Server {
 	r := gin.Default()
-	r.POST("/hook/codacy", codacyHandler)
+	r.POST("/hook/codacy", CodacyHandler)
+	r.POST("/hook/travis", TravisHandler)
 	srv := &http.Server{
 		Addr:           listenHost,
 		Handler:        r,
@@ -109,7 +72,6 @@ func onMessageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 }
 
 func main() {
-
 	ctx := context.Background()
 	if token == "" {
 		token = os.Getenv("TOKEN")

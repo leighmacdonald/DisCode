@@ -1,4 +1,4 @@
-module discode
+module github.com/leighmacdonald/discode
 
 go 1.14
 
